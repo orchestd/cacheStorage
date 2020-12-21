@@ -26,7 +26,7 @@ type CacheStorageSetter interface {
 }
 
 type CacheStorage interface {
-	Connect(context.Context, Credentials) error
+	Connect(c context.Context, username string, password string, host string, database string) error
 	Close(context.Context) error
 	GetCacheStorageClient() (CacheStorageGetter, CacheStorageSetter)
 }
@@ -34,7 +34,7 @@ type CacheStorage interface {
 func NewCacheStorageClient(lc fx.Lifecycle, credentials Credentials, cacheStorage CacheStorage) (CacheStorageGetter, CacheStorageSetter) {
 	lc.Append(fx.Hook{
 		OnStart: func(c context.Context) error {
-			return cacheStorage.Connect(c, credentials)
+			return cacheStorage.Connect(c, credentials.Username, credentials.Password, credentials.Host, credentials.Database)
 		},
 		OnStop: func(c context.Context) error {
 			return cacheStorage.Close(c)

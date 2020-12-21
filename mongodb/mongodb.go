@@ -16,8 +16,8 @@ func NewMongoDbCacheStorage() *mongodbCacheStorage {
 	return &mongodbCacheStorage{}
 }
 
-func (s mongodbCacheStorage) Connect(c context.Context, credentials cacheStorage.Credentials) error {
-	client, err := mongo.NewClient(options.Client().ApplyURI(credentials.Host))
+func (s *mongodbCacheStorage) Connect(c context.Context, username string, password string, host string, database string) error {
+	client, err := mongo.NewClient(options.Client().ApplyURI(host))
 	if err != nil {
 		return err
 	}
@@ -26,7 +26,7 @@ func (s mongodbCacheStorage) Connect(c context.Context, credentials cacheStorage
 	if err != nil {
 		return err
 	}
-	s.database = client.Database(credentials.Database)
+	s.database = client.Database(database)
 	return nil
 }
 
@@ -35,6 +35,6 @@ func (s mongodbCacheStorage) Close(c context.Context) error {
 }
 
 func (s mongodbCacheStorage) GetCacheStorageClient() (cacheStorage.CacheStorageGetter, cacheStorage.CacheStorageSetter) {
-	client := mongodbClient{}
+	client := mongodbClient{database: s.database}
 	return client, client
 }
