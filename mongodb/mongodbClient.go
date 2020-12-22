@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	. "bitbucket.org/HeilaSystems/cacheStorage"
 	"bytes"
 	"context"
 	"encoding/gob"
@@ -12,9 +13,11 @@ import (
 )
 
 const idField = "id"
+const verField = "ver"
 
 type CacheWrapper struct {
-	Id   interface{}
+	Id   string
+	Ver  string
 	Data []byte
 }
 
@@ -35,7 +38,7 @@ func (w CacheWrapper) ExtractData(i interface{}) error {
 	return err
 }
 
-func checkDestType(i interface{}, pointer, nonNil, slice bool) error {
+func checkDestType(i interface{}, pointer, nonNil, isMap bool) error {
 	value := reflect.ValueOf(i)
 	if pointer && value.Kind() != reflect.Ptr {
 		return fmt.Errorf("dest must be a pointer, not a value")
@@ -44,112 +47,136 @@ func checkDestType(i interface{}, pointer, nonNil, slice bool) error {
 		return fmt.Errorf("dest must be a non nil pointer")
 	}
 	direct := reflect.Indirect(value)
-	if slice && direct.Kind() != reflect.Slice {
-		return fmt.Errorf("dest must be a slice")
+	if isMap && direct.Kind() != reflect.Map {
+		return fmt.Errorf("dest must be a map[string]yourCacheType")
 	}
 	return nil
 }
 
-func getSliceType(i interface{}) reflect.Type {
-	return reflect.TypeOf(i).Elem().Elem()
+func getMapValueType(i interface{}) reflect.Type {
+	return reflect.TypeOf(i).Elem()
 }
 
 type mongodbClient struct {
 	database *mongo.Database
 }
 
-func (m mongodbClient) GetById(ctx context.Context, collectionName string, id interface{}, dest interface{}) error {
+func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
 	err := checkDestType(dest, true, true, false)
 	if err != nil {
-		return err
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
 	}
-	result := m.database.Collection(collectionName).FindOne(ctx, bson.M{idField: id})
+	result := m.database.Collection(collectionName).FindOne(ctx, bson.M{idField: id, verField: ver})
 	if result.Err() != nil {
-		return result.Err()
+		if result.Err() == mongo.ErrNoDocuments {
+			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()))
+		} else {
+			return NewMongoCacheStorageError(result.Err())
+		}
 	}
 	var wrap CacheWrapper
 	err = result.Decode(&wrap)
 	if err != nil {
-		return err
+		return NewMongoCacheStorageError(err)
 	}
 	err = wrap.ExtractData(dest)
 	if err != nil {
-		return err
+		return NewMongoCacheStorageError(err)
 	}
 	return nil
 }
 
-func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, id []interface{}, dest interface{}) error {
-	err := checkDestType(dest, true, true, true)
+func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
+	err := checkDestType(dest, false, true, true)
 	if err != nil {
-		return err
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
 	}
-	var filter bson.M
-	if len(id) > 0 {
-		filter = bson.M{idField: bson.M{"$in": id}}
+	filter := bson.M{verField: ver}
+	if len(ids) > 0 {
+		filter = bson.M{verField: ver, idField: bson.M{"$in": ids}}
 	}
 	cur, err := m.database.Collection(collectionName).Find(ctx, filter)
 	if err != nil {
-		return err
+		return NewMongoCacheStorageError(err)
 	}
-	destValue := reflect.ValueOf(dest).Elem()
+	foundElementsCount := 0
 	for cur.Next(ctx) {
 		var wrap CacheWrapper
 		err := cur.Decode(&wrap)
 		if err != nil {
-			return err
+			return NewMongoCacheStorageError(err)
 		}
-		destItemType := getSliceType(dest)
+		destItemType := getMapValueType(dest)
 		destItemP := reflect.New(destItemType)
 		destItem := reflect.Indirect(destItemP)
 		err = wrap.ExtractData(destItemP.Interface())
 		if err != nil {
-			return err
+			return NewMongoCacheStorageError(err)
 		}
-		destValue.Set(reflect.Append(destValue, destItem))
+		reflect.ValueOf(dest).SetMapIndex(reflect.ValueOf(wrap.Id), destItem)
+		foundElementsCount++
+	}
+	if foundElementsCount < len(ids) {
+		return NewMongoCacheStorageError(NotFoundError)
 	}
 	return nil
 }
 
-func (m mongodbClient) GetAll(ctx context.Context, collectionName string, dest interface{}) error {
-	return m.GetManyByIds(ctx, collectionName, nil, dest)
+func (m mongodbClient) GetAll(ctx context.Context, collectionName string, ver string, dest interface{}) CacheStorageError {
+	return m.GetManyByIds(ctx, collectionName, nil, ver, dest)
 }
 
-func (m mongodbClient) Insert(ctx context.Context, collectionName string, id interface{}, item interface{}) error {
-	wrap := CacheWrapper{Id: id}.AddData(item)
+func (m mongodbClient) Insert(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
+	wrap := CacheWrapper{Id: id, Ver: ver}.AddData(item)
 	_, err := m.database.Collection(collectionName).InsertOne(ctx, wrap)
-	return err
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
 }
 
-func (m mongodbClient) InsertMany(ctx context.Context, collectionName string, items map[interface{}]interface{}) error {
+func (m mongodbClient) InsertMany(ctx context.Context, collectionName string, ver string, items map[string]interface{}) CacheStorageError {
 	var wraps []interface{}
 	for id, v := range items {
-		wraps = append(wraps, CacheWrapper{Id: id}.AddData(v))
+		wraps = append(wraps, CacheWrapper{Id: id, Ver: ver}.AddData(v))
 	}
 	_, err := m.database.Collection(collectionName).InsertMany(ctx, wraps)
-	return err
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
 }
 
-func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string, id interface{}, item interface{}) error {
-	if count, err := m.database.Collection(collectionName).CountDocuments(ctx, bson.M{idField: id}); err != nil {
-		return err
+func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
+	if count, err := m.database.Collection(collectionName).CountDocuments(ctx, bson.M{idField: id, verField: ver}); err != nil {
+		return NewMongoCacheStorageError(err)
 	} else if count > 0 {
-		return m.Update(ctx, collectionName, id, item)
+		return m.Update(ctx, collectionName, id, ver, item)
 	} else {
-		return m.Insert(ctx, collectionName, id, item)
+		return m.Insert(ctx, collectionName, id, ver, item)
 	}
 }
 
-func (m mongodbClient) Update(ctx context.Context, collectionName string, id interface{}, item interface{}) error {
-	_, err := m.database.Collection(collectionName).ReplaceOne(ctx, bson.M{idField: id}, CacheWrapper{Id: id}.AddData(item))
-	return err
+func (m mongodbClient) Update(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
+	_, err := m.database.Collection(collectionName).ReplaceOne(ctx, bson.M{idField: id, verField: ver}, CacheWrapper{Id: id, Ver: ver}.AddData(item))
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
 }
 
-func (m mongodbClient) Remove(ctx context.Context, collectionName string, id interface{}) error {
-	_, err := m.database.Collection(collectionName).DeleteOne(ctx, bson.M{idField: id})
-	return err
+func (m mongodbClient) Remove(ctx context.Context, collectionName string, id string, ver string) CacheStorageError {
+	_, err := m.database.Collection(collectionName).DeleteOne(ctx, bson.M{idField: id, verField: ver})
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
 }
 
-func (m mongodbClient) RemoveAll(c context.Context, collectionName string) error {
+func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver string) CacheStorageError {
+	_, err := m.database.Collection(collectionName).DeleteMany(ctx, bson.M{})
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
 	return nil
 }

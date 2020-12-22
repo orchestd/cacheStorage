@@ -23,6 +23,8 @@ type TestCatalogItem struct {
 	Price float32
 }
 
+var testVersion = "1"
+
 var testCatalogItem1 = TestCatalogItem{Id: "1", Name: "Item1", Price: 10.20}
 var testCatalogItem2 = TestCatalogItem{Id: "2", Name: "Item2", Price: 20.30}
 var testCatalogItem3 = TestCatalogItem{Id: "3", Name: "Item3", Price: 30.40}
@@ -43,10 +45,10 @@ func initTestCollection(host string) error {
 	collection := db.Collection(testCollectionName)
 
 	testCatalog := []interface{}{
-		CacheWrapper{Id: "1"}.AddData(testCatalogItem1),
-		CacheWrapper{Id: "2"}.AddData(testCatalogItem2),
-		CacheWrapper{Id: "3"}.AddData(testCatalogItem3),
-		CacheWrapper{Id: "4"}.AddData(testCatalogItem4),
+		CacheWrapper{Id: "1", Ver: testVersion}.AddData(testCatalogItem1),
+		CacheWrapper{Id: "2", Ver: testVersion}.AddData(testCatalogItem2),
+		CacheWrapper{Id: "3", Ver: testVersion}.AddData(testCatalogItem3),
+		CacheWrapper{Id: "4", Ver: testVersion}.AddData(testCatalogItem4),
 	}
 	_, err = collection.InsertMany(ctx, testCatalog)
 	if err != nil {
@@ -95,48 +97,63 @@ func TestGetById(t *testing.T) {
 	cacheGetter, _ := cache.GetCacheStorageClient()
 	var testCatalogItem TestCatalogItem
 	Convey("Getting test item by ID = 1 and non pointer dest", t, func() {
-		err := cacheGetter.GetById(context.TODO(), testCollectionName, "1", testCatalogItem)
+		err := cacheGetter.GetById(context.TODO(), testCollectionName, "1", testVersion, testCatalogItem)
 		So(err, ShouldNotBeNil)
+		So(err.IsInvalidDestType(), ShouldBeTrue)
 	})
-	Convey("Getting test item by ID = 1", t, func() {
-		err := cacheGetter.GetById(context.TODO(), testCollectionName, "1", &testCatalogItem)
+	Convey("Getting existing test item by ID = 1", t, func() {
+		err := cacheGetter.GetById(context.TODO(), testCollectionName, "1", testVersion, &testCatalogItem)
 		So(err, ShouldBeNil)
 		So(testCatalogItem.Id, ShouldEqual, testCatalogItem1.Id)
 		So(testCatalogItem.Name, ShouldEqual, testCatalogItem1.Name)
 		So(testCatalogItem.Price, ShouldEqual, testCatalogItem1.Price)
+	})
+	Convey("Getting non existent test item by ID = 9", t, func() {
+		err := cacheGetter.GetById(context.TODO(), testCollectionName, "9", testVersion, &testCatalogItem)
+		So(err, ShouldNotBeNil)
+		So(err.IsNotFound(), ShouldBeTrue)
 	})
 }
 
 func TestGetManyByIds(t *testing.T) {
 	cacheGetter, _ := cache.GetCacheStorageClient()
 	var testCatalogItem TestCatalogItem
-	Convey("Getting test item by ID = 1, 2, 3 and non slice dest", t, func() {
-		err := cacheGetter.GetById(context.TODO(), testCollectionName, "1", testCatalogItem)
+	Convey("Getting test item by ID = 1, 2, 3 and non map dest", t, func() {
+		err := cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"1"}, testVersion, &testCatalogItem)
 		So(err, ShouldNotBeNil)
+		So(err.IsInvalidDestType(), ShouldBeTrue)
 	})
 
-	var testCatalogItems []TestCatalogItem
-	Convey("Getting test items by ID = 1, 2, 3", t, func() {
-		err := cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []interface{}{"1", "2", "3"}, &testCatalogItems)
+	Convey("Getting 3 existing test items by ID = 1, 2, 3", t, func() {
+		testCatalogItems := make(map[string]TestCatalogItem)
+		err := cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"1", "2", "3"}, testVersion, testCatalogItems)
 		So(err, ShouldBeNil)
 		So(len(testCatalogItems), ShouldEqual, 3)
-		So(testCatalogItems[0].Id, ShouldNotBeEmpty)
-		So(testCatalogItems[0].Name, ShouldNotBeEmpty)
-		So(testCatalogItems[0].Price, ShouldNotBeEmpty)
+		So(testCatalogItems["1"].Id, ShouldEqual, testCatalogItem1.Id)
+		So(testCatalogItems["1"].Name, ShouldEqual, testCatalogItem1.Name)
+		So(testCatalogItems["1"].Price, ShouldEqual, testCatalogItem1.Price)
+	})
+
+	Convey("Getting 2 existing test items by ID = 1, 2 and one non existent item by ID = 9", t, func() {
+		testCatalogItems := make(map[string]TestCatalogItem)
+		err := cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"1", "2", "9"}, testVersion, testCatalogItems)
+		So(err, ShouldNotBeNil)
+		So(err.IsNotFound(), ShouldBeTrue)
+		So(len(testCatalogItems), ShouldEqual, 2)
 	})
 }
 
 func TestGetAll(t *testing.T) {
-	var testCatalogItems []TestCatalogItem
+	testCatalogItems := make(map[string]TestCatalogItem)
 
 	cacheGetter, _ := cache.GetCacheStorageClient()
 	Convey("Getting all items from the test collection", t, func() {
-		err := cacheGetter.GetAll(context.TODO(), testCollectionName, &testCatalogItems)
+		err := cacheGetter.GetAll(context.TODO(), testCollectionName, testVersion, testCatalogItems)
 		So(err, ShouldBeNil)
 		So(len(testCatalogItems), ShouldEqual, 4)
-		So(testCatalogItems[0].Id, ShouldNotBeEmpty)
-		So(testCatalogItems[0].Name, ShouldNotBeEmpty)
-		So(testCatalogItems[0].Price, ShouldNotBeEmpty)
+		So(testCatalogItems["1"].Id, ShouldEqual, testCatalogItem1.Id)
+		So(testCatalogItems["1"].Name, ShouldEqual, testCatalogItem1.Name)
+		So(testCatalogItems["1"].Price, ShouldEqual, testCatalogItem1.Price)
 	})
 }
 
@@ -144,13 +161,13 @@ func TestInsert(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	testCatalogItem := TestCatalogItem{Id: "5", Name: "Item5", Price: 50.60}
 	Convey("Inserting test item with ID = 5", t, func() {
-		err := cacheSetter.Insert(context.TODO(), testCollectionName, "5", testCatalogItem)
+		err := cacheSetter.Insert(context.TODO(), testCollectionName, "5", testVersion, testCatalogItem)
 		So(err, ShouldBeNil)
 	})
 
 	var insertedItem TestCatalogItem
 	Convey("Getting inserted test item with ID = 5", t, func() {
-		cacheGetter.GetById(context.TODO(), testCollectionName, "5", &insertedItem)
+		cacheGetter.GetById(context.TODO(), testCollectionName, "5", testVersion, &insertedItem)
 		So(insertedItem.Id, ShouldEqual, testCatalogItem.Id)
 		So(insertedItem.Name, ShouldEqual, testCatalogItem.Name)
 		So(insertedItem.Price, ShouldEqual, testCatalogItem.Price)
@@ -159,34 +176,34 @@ func TestInsert(t *testing.T) {
 
 func TestInsertMany(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
-	testCatalogItems := map[interface{}]interface{}{
+	testCatalogItems := map[string]interface{}{
 		"6": TestCatalogItem{Id: "6", Name: "Item6", Price: 50.60},
 		"7": TestCatalogItem{Id: "7", Name: "Item7", Price: 50.60},
 		"8": TestCatalogItem{Id: "8", Name: "Item8", Price: 50.60},
 	}
 	Convey("Inserting test items with ID = 6, 7, 8", t, func() {
-		err := cacheSetter.InsertMany(context.TODO(), testCollectionName, testCatalogItems)
+		err := cacheSetter.InsertMany(context.TODO(), testCollectionName, testVersion, testCatalogItems)
 		So(err, ShouldBeNil)
 	})
-
-	var insertedItems []TestCatalogItem
+	insertedItems := make(map[string]TestCatalogItem)
 	Convey("Getting inserted test items with ID = 6, 7, 8", t, func() {
-		cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []interface{}{"6", "7", "8"}, &insertedItems)
+		cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"6", "7", "8"}, testVersion, insertedItems)
 		So(len(insertedItems), ShouldEqual, 3)
 	})
 }
+
 
 func TestUpdate(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	testCatalogItem1.Name = testCatalogItem1.Name + "!"
 	Convey("Updating existing test item with ID = 1", t, func() {
-		err := cacheSetter.Update(context.TODO(), testCollectionName, "1", testCatalogItem1)
+		err := cacheSetter.Update(context.TODO(), testCollectionName, "1", testVersion, testCatalogItem1)
 		So(err, ShouldBeNil)
 	})
 
 	Convey("Getting updated test item with ID = 9 and name = Item9!", t, func() {
 		testCatalogItem := TestCatalogItem{}
-		cacheGetter.GetById(context.TODO(), testCollectionName, "1", &testCatalogItem)
+		cacheGetter.GetById(context.TODO(), testCollectionName, "1", testVersion, &testCatalogItem)
 		So(testCatalogItem.Id, ShouldEqual, testCatalogItem1.Id)
 		So(testCatalogItem.Name, ShouldEqual, testCatalogItem1.Name)
 		So(testCatalogItem.Price, ShouldEqual, testCatalogItem1.Price)
@@ -197,12 +214,12 @@ func TestInsertOrUpdate(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	testCatalogItem := TestCatalogItem{Id: "9", Name: "Item9", Price: 99.69}
 	Convey("Inserting or updating non exist test item with ID = 9", t, func() {
-		err := cacheSetter.InsertOrUpdate(context.TODO(), testCollectionName, "9", testCatalogItem)
+		err := cacheSetter.InsertOrUpdate(context.TODO(), testCollectionName, "9", testVersion, testCatalogItem)
 		So(err, ShouldBeNil)
 	})
 	var insertedItem TestCatalogItem
 	Convey("Getting inserted test item with ID = 9 and name = Item9", t, func() {
-		cacheGetter.GetById(context.TODO(), testCollectionName, "9", &insertedItem)
+		cacheGetter.GetById(context.TODO(), testCollectionName, "9", testVersion, &insertedItem)
 		So(insertedItem.Id, ShouldEqual, testCatalogItem.Id)
 		So(insertedItem.Name, ShouldEqual, testCatalogItem.Name)
 		So(insertedItem.Price, ShouldEqual, testCatalogItem.Price)
@@ -210,12 +227,12 @@ func TestInsertOrUpdate(t *testing.T) {
 
 	testCatalogItem.Name = testCatalogItem.Name + "!"
 	Convey("Inserting or updating exist test item with ID = 9", t, func() {
-		err := cacheSetter.InsertOrUpdate(context.TODO(), testCollectionName, "9", testCatalogItem)
+		err := cacheSetter.InsertOrUpdate(context.TODO(), testCollectionName, "9", testVersion, testCatalogItem)
 		So(err, ShouldBeNil)
 	})
 
 	Convey("Getting updated test item with ID = 9 and name = Item9!", t, func() {
-		cacheGetter.GetById(context.TODO(), testCollectionName, "9", &insertedItem)
+		cacheGetter.GetById(context.TODO(), testCollectionName, "9", testVersion, &insertedItem)
 		So(insertedItem.Id, ShouldEqual, testCatalogItem.Id)
 		So(insertedItem.Name, ShouldEqual, testCatalogItem.Name)
 		So(insertedItem.Price, ShouldEqual, testCatalogItem.Price)
@@ -224,18 +241,26 @@ func TestInsertOrUpdate(t *testing.T) {
 
 func TestRemove(t *testing.T){
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
-	testCatalogItem1.Name = testCatalogItem1.Name + "!"
 	Convey("Removing test item with ID = 1", t, func() {
-		err := cacheSetter.Remove(context.TODO(), testCollectionName, "1")
+		err := cacheSetter.Remove(context.TODO(), testCollectionName, "1", testVersion)
 		So(err, ShouldBeNil)
 	})
 	Convey("Getting removed test item with ID = 1", t, func() {
-		var insertedItems []TestCatalogItem
-		cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []interface{}{"1"}, &insertedItems)
+		insertedItems := make(map[string]TestCatalogItem)
+		cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"1"}, testVersion, insertedItems)
 		So(len(insertedItems), ShouldEqual, 0)
 	})
 }
 
 func TestRemoveAll(t *testing.T){
-
+	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
+	Convey("Removing all items", t, func() {
+		err := cacheSetter.RemoveAll(context.TODO(), testCollectionName, testVersion)
+		So(err, ShouldBeNil)
+	})
+	Convey("Getting all items", t, func() {
+		insertedItems := make(map[string]TestCatalogItem)
+		cacheGetter.GetAll(context.TODO(), testCollectionName, testVersion, insertedItems)
+		So(len(insertedItems), ShouldEqual, 0)
+	})
 }
