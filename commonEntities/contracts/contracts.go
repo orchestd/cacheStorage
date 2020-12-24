@@ -7,17 +7,17 @@ import (
 )
 
 type StoreGetter interface {
-	GetById(ctx context.Context, id string) (Store, CacheStorageError)
+	GetById(ctx context.Context, ver string, id string) (Store, CacheStorageError)
 
-	GetMany(ctx context.Context, ids []string) ([]Store, CacheStorageError)
+	GetMany(ctx context.Context, ver string, ids []string) ([]Store, CacheStorageError)
 
-	GetAll(ctx context.Context) ([]Store, CacheStorageError)
+	GetAll(ctx context.Context, ver string) ([]Store, CacheStorageError)
 }
 
 type ChainGetter interface {
-	GetById(ctx context.Context, id string) (Chain, CacheStorageError)
+	GetById(ctx context.Context, ver string, id string) (Chain, CacheStorageError)
 
-	GetMany(ctx context.Context, ids []string) ([]Chain, CacheStorageError)
+	GetMany(ctx context.Context, ver string, ids []string) ([]Chain, CacheStorageError)
 
-	GetAll(ctx context.Context) ([]Chain, CacheStorageError)
+	GetAll(ctx context.Context, ver string) ([]Chain, CacheStorageError)
 }
