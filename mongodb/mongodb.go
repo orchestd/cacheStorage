@@ -12,7 +12,7 @@ type mongodbCacheStorage struct {
 	database *mongo.Database
 }
 
-func NewMongoDbCacheStorage() *mongodbCacheStorage {
+func NewMongoDbCacheStorage() cacheStorage.CacheStorage {
 	return &mongodbCacheStorage{}
 }
 
