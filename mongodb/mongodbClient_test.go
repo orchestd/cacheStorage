@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"bitbucket.org/HeilaSystems/cacheStorage"
 	"context"
 	"fmt"
 	"github.com/ory/dockertest"
@@ -15,7 +16,7 @@ import (
 
 var testCollectionName = "catalog"
 
-var cache *mongodbCacheStorage
+var cache cacheStorage.CacheStorage
 
 type TestCatalogItem struct {
 	Id    string
@@ -77,7 +78,7 @@ func TestMain(m *testing.M) {
 		}
 		cache = NewMongoDbCacheStorage()
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		err := cache.Connect(ctx, "", "", host, "test")
+		err := cache.Connect(ctx, host, "test")
 		return err
 	}); err != nil {
 		log.Fatalf("Could not connect to docker: %s", err)

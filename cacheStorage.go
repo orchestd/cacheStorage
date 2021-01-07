@@ -26,7 +26,7 @@ type CacheStorageSetter interface {
 }
 
 type CacheStorage interface {
-	Connect(c context.Context, username string, password string, host string, database string) error
+	Connect(c context.Context, connectionString string, database string) error
 	Close(context.Context) error
 	GetCacheStorageClient() (CacheStorageGetter, CacheStorageSetter)
 }

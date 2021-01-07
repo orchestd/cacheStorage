@@ -58,7 +58,7 @@ func getMapValueType(i interface{}) reflect.Type {
 }
 
 type mongodbClient struct {
-	database *mongo.Database
+	storage *mongodbCacheStorage
 }
 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
@@ -66,7 +66,7 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
 	}
-	result := m.database.Collection(collectionName).FindOne(ctx, bson.M{idField: id, verField: ver})
+	result := m.storage.database.Collection(collectionName).FindOne(ctx, bson.M{idField: id, verField: ver})
 	if result.Err() != nil {
 		if result.Err() == mongo.ErrNoDocuments {
 			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()))
@@ -95,7 +95,7 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 	if len(ids) > 0 {
 		filter = bson.M{verField: ver, idField: bson.M{"$in": ids}}
 	}
-	cur, err := m.database.Collection(collectionName).Find(ctx, filter)
+	cur, err := m.storage.database.Collection(collectionName).Find(ctx, filter)
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -128,7 +128,7 @@ func (m mongodbClient) GetAll(ctx context.Context, collectionName string, ver st
 
 func (m mongodbClient) Insert(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
 	wrap := CacheWrapper{Id: id, Ver: ver}.AddData(item)
-	_, err := m.database.Collection(collectionName).InsertOne(ctx, wrap)
+	_, err := m.storage.database.Collection(collectionName).InsertOne(ctx, wrap)
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -140,7 +140,7 @@ func (m mongodbClient) InsertMany(ctx context.Context, collectionName string, ve
 	for id, v := range items {
 		wraps = append(wraps, CacheWrapper{Id: id, Ver: ver}.AddData(v))
 	}
-	_, err := m.database.Collection(collectionName).InsertMany(ctx, wraps)
+	_, err := m.storage.database.Collection(collectionName).InsertMany(ctx, wraps)
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -148,7 +148,7 @@ func (m mongodbClient) InsertMany(ctx context.Context, collectionName string, ve
 }
 
 func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
-	if count, err := m.database.Collection(collectionName).CountDocuments(ctx, bson.M{idField: id, verField: ver}); err != nil {
+	if count, err := m.storage.database.Collection(collectionName).CountDocuments(ctx, bson.M{idField: id, verField: ver}); err != nil {
 		return NewMongoCacheStorageError(err)
 	} else if count > 0 {
 		return m.Update(ctx, collectionName, id, ver, item)
@@ -158,7 +158,7 @@ func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string
 }
 
 func (m mongodbClient) Update(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
-	_, err := m.database.Collection(collectionName).ReplaceOne(ctx, bson.M{idField: id, verField: ver}, CacheWrapper{Id: id, Ver: ver}.AddData(item))
+	_, err := m.storage.database.Collection(collectionName).ReplaceOne(ctx, bson.M{idField: id, verField: ver}, CacheWrapper{Id: id, Ver: ver}.AddData(item))
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -166,7 +166,7 @@ func (m mongodbClient) Update(ctx context.Context, collectionName string, id str
 }
 
 func (m mongodbClient) Remove(ctx context.Context, collectionName string, id string, ver string) CacheStorageError {
-	_, err := m.database.Collection(collectionName).DeleteOne(ctx, bson.M{idField: id, verField: ver})
+	_, err := m.storage.database.Collection(collectionName).DeleteOne(ctx, bson.M{idField: id, verField: ver})
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -174,7 +174,7 @@ func (m mongodbClient) Remove(ctx context.Context, collectionName string, id str
 }
 
 func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver string) CacheStorageError {
-	_, err := m.database.Collection(collectionName).DeleteMany(ctx, bson.M{})
+	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{})
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
