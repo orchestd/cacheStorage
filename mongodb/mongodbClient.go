@@ -2,9 +2,8 @@ package mongodb
 
 import (
 	. "bitbucket.org/HeilaSystems/cacheStorage"
-	"bytes"
 	"context"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,6 +20,7 @@ type CacheWrapper struct {
 	Data []byte
 }
 
+/*
 func (w CacheWrapper) AddData(i interface{}) CacheWrapper {
 	gob.Register(i)
 	var data bytes.Buffer
@@ -35,6 +35,21 @@ func (w CacheWrapper) AddData(i interface{}) CacheWrapper {
 func (w CacheWrapper) ExtractData(i interface{}) error {
 	data := bytes.NewBuffer(w.Data)
 	err := gob.NewDecoder(data).Decode(i)
+	return err
+}
+*/
+
+func (w CacheWrapper) AddData(i interface{}) CacheWrapper {
+	b, err := json.Marshal(i)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Data = b
+	return w
+}
+
+func (w CacheWrapper) ExtractData(i interface{}) error {
+	err := json.Unmarshal(w.Data, i)
 	return err
 }
 
