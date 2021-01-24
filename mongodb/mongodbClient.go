@@ -17,7 +17,7 @@ const verField = "ver"
 type CacheWrapper struct {
 	Id   string
 	Ver  string
-	Data []byte
+	Data string
 }
 
 /*
@@ -44,12 +44,12 @@ func (w CacheWrapper) AddData(i interface{}) CacheWrapper {
 	if err != nil {
 		log.Fatal(err)
 	}
-	w.Data = b
+	w.Data = string(b)
 	return w
 }
 
 func (w CacheWrapper) ExtractData(i interface{}) error {
-	err := json.Unmarshal(w.Data, i)
+	err := json.Unmarshal([]byte(w.Data), i)
 	return err
 }
 
