@@ -20,6 +20,7 @@ type CacheStorageGetter interface {
 	GetManyByIds(c context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError
 	GetAll(c context.Context, collectionName string, ver string, dest interface{}) CacheStorageError
 	GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError)
+	GetLatestCollectionVersion(c context.Context, collection string) (CacheVersion, CacheStorageError)
 }
 
 type CacheStorageSetter interface {

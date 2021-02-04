@@ -15,7 +15,6 @@ import (
 )
 
 var testCollectionName = "catalog"
-var testCacheVersionsCollectionName = "cacheVersions"
 
 var cache cacheStorage.CacheStorage
 
@@ -31,6 +30,7 @@ var testCatalogItem1 = TestCatalogItem{Id: "1", Name: "Item1", Price: 10.20}
 var testCatalogItem2 = TestCatalogItem{Id: "2", Name: "Item2", Price: 20.30}
 var testCatalogItem3 = TestCatalogItem{Id: "3", Name: "Item3", Price: 30.40}
 var testCatalogItem4 = TestCatalogItem{Id: "4", Name: "Item4", Price: 40.50}
+var testCatalogItem5 = TestCatalogItem{Id: "5", Name: "Item5", Price: 40.50}
 
 func initTestCollection(host string) error {
 	client, err := mongo.NewClient(options.Client().ApplyURI(host))
@@ -44,7 +44,7 @@ func initTestCollection(host string) error {
 	if err != nil {
 		return err
 	}
-	err = db.CreateCollection(ctx, testCacheVersionsCollectionName)
+	err = db.CreateCollection(ctx, cacheVersionsCollectionName)
 	if err != nil {
 		return err
 	}
@@ -55,6 +55,7 @@ func initTestCollection(host string) error {
 		CacheWrapper{Id: "2", Ver: testVersion}.AddData(testCatalogItem2),
 		CacheWrapper{Id: "3", Ver: testVersion}.AddData(testCatalogItem3),
 		CacheWrapper{Id: "4", Ver: testVersion}.AddData(testCatalogItem4),
+		CacheWrapper{Id: "5", Ver: "3"}.AddData(testCatalogItem5),
 	}
 	_, err = collection.InsertMany(ctx, testCatalog)
 	if err != nil {
@@ -64,8 +65,9 @@ func initTestCollection(host string) error {
 		CacheWrapper{Id: "stores", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "stores", Version: "2"}),
 		CacheWrapper{Id: "storeOpeningHours", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "storeOpeningHours", Version: "4"}),
 		CacheWrapper{Id: "occasions", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "occasions", Version: "7"}),
+		CacheWrapper{Id: testCollectionName, Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: testCollectionName, Version: "3"}),
 	}
-	_, err = db.Collection(testCacheVersionsCollectionName).InsertMany(ctx, testVersions)
+	_, err = db.Collection(cacheVersionsCollectionName).InsertMany(ctx, testVersions)
 	if err != nil {
 		return err
 	}
@@ -108,6 +110,27 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestGetLatestVersions(t *testing.T) {
+	cacheGetter, _ := cache.GetCacheStorageClient()
+	Convey("Getting cache versions", t, func() {
+		versions, err := cacheGetter.GetLatestVersions(context.TODO())
+		So(err, ShouldBeNil)
+		So(len(versions), ShouldEqual, 4)
+		So(versions[0].CollectionName, ShouldEqual, "stores")
+		So(versions[0].Version, ShouldEqual, "2")
+	})
+}
+
+func TestGetLatestCollectionVersion(t *testing.T) {
+	cacheGetter, _ := cache.GetCacheStorageClient()
+	Convey("Getting stores latest cache versions", t, func() {
+		version, err := cacheGetter.GetLatestCollectionVersion(context.TODO(), "stores")
+		So(err, ShouldBeNil)
+		So(version.CollectionName, ShouldEqual, "stores")
+		So(version.Version, ShouldEqual, "2")
+	})
+}
+
 func TestGetById(t *testing.T) {
 	cacheGetter, _ := cache.GetCacheStorageClient()
 	var testCatalogItem TestCatalogItem
@@ -128,16 +151,10 @@ func TestGetById(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(err.IsNotFound(), ShouldBeTrue)
 	})
-}
-
-func TestGetLatestVersion(t *testing.T) {
-	cacheGetter, _ := cache.GetCacheStorageClient()
-	Convey("Getting cache versions", t, func() {
-		versions, err := cacheGetter.GetLatestVersions(context.TODO())
+	Convey("Getting latest version of an item by ID = 5", t, func() {
+		err := cacheGetter.GetById(context.TODO(), testCollectionName, "5", Latest, &testCatalogItem)
 		So(err, ShouldBeNil)
-		So(len(versions), ShouldEqual, 3)
-		So(versions[0].CollectionName, ShouldEqual, "stores")
-		So(versions[0].Version, ShouldEqual, "2")
+		So(testCatalogItem.Id, ShouldEqual, testCatalogItem5.Id)
 	})
 }
 
