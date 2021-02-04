@@ -15,6 +15,7 @@ import (
 )
 
 var testCollectionName = "catalog"
+var testCacheVersionsCollectionName = "cacheVersions"
 
 var cache cacheStorage.CacheStorage
 
@@ -43,6 +44,10 @@ func initTestCollection(host string) error {
 	if err != nil {
 		return err
 	}
+	err = db.CreateCollection(ctx, testCacheVersionsCollectionName)
+	if err != nil {
+		return err
+	}
 	collection := db.Collection(testCollectionName)
 
 	testCatalog := []interface{}{
@@ -52,6 +57,15 @@ func initTestCollection(host string) error {
 		CacheWrapper{Id: "4", Ver: testVersion}.AddData(testCatalogItem4),
 	}
 	_, err = collection.InsertMany(ctx, testCatalog)
+	if err != nil {
+		return err
+	}
+	testVersions := []interface{}{
+		CacheWrapper{Id: "stores", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "stores", Version: "2"}),
+		CacheWrapper{Id: "storeOpeningHours", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "storeOpeningHours", Version: "4"}),
+		CacheWrapper{Id: "occasions", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "occasions", Version: "7"}),
+	}
+	_, err = db.Collection(testCacheVersionsCollectionName).InsertMany(ctx, testVersions)
 	if err != nil {
 		return err
 	}
@@ -113,6 +127,17 @@ func TestGetById(t *testing.T) {
 		err := cacheGetter.GetById(context.TODO(), testCollectionName, "9", testVersion, &testCatalogItem)
 		So(err, ShouldNotBeNil)
 		So(err.IsNotFound(), ShouldBeTrue)
+	})
+}
+
+func TestGetLatestVersion(t *testing.T) {
+	cacheGetter, _ := cache.GetCacheStorageClient()
+	Convey("Getting cache versions", t, func() {
+		versions, err := cacheGetter.GetLatestVersions(context.TODO())
+		So(err, ShouldBeNil)
+		So(len(versions), ShouldEqual, 3)
+		So(versions[0].CollectionName, ShouldEqual, "stores")
+		So(versions[0].Version, ShouldEqual, "2")
 	})
 }
 
@@ -193,7 +218,6 @@ func TestInsertMany(t *testing.T) {
 	})
 }
 
-
 func TestUpdate(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	testCatalogItem1.Name = testCatalogItem1.Name + "!"
@@ -240,7 +264,7 @@ func TestInsertOrUpdate(t *testing.T) {
 	})
 }
 
-func TestRemove(t *testing.T){
+func TestRemove(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	Convey("Removing test item with ID = 1", t, func() {
 		err := cacheSetter.Remove(context.TODO(), testCollectionName, "1", testVersion)
@@ -253,7 +277,7 @@ func TestRemove(t *testing.T){
 	})
 }
 
-func TestRemoveAll(t *testing.T){
+func TestRemoveAll(t *testing.T) {
 	cacheGetter, cacheSetter := cache.GetCacheStorageClient()
 	Convey("Removing all items", t, func() {
 		err := cacheSetter.RemoveAll(context.TODO(), testCollectionName, testVersion)

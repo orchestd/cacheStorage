@@ -76,13 +76,17 @@ type mongodbClient struct {
 	storage *mongodbCacheStorage
 }
 
-func (m mongodbClient) GetLatestVersion(c context.Context, collectionName string) (CacheVersion, CacheStorageError) {
-	cacheVersion := CacheVersion{}
-	err := m.GetById(c, "cacheVersions", collectionName, "1", &cacheVersion)
+func (m mongodbClient) GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError) {
+	cacheVersions := make(map[string]CacheVersion)
+	var versions []CacheVersion
+	err := m.GetAll(c, "cacheVersions", "1", cacheVersions)
 	if err != nil {
-		return cacheVersion, err
+		return versions, err
 	}
-	return cacheVersion, nil
+	for i := range cacheVersions {
+		versions = append(versions, cacheVersions[i])
+	}
+	return versions, err
 }
 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
