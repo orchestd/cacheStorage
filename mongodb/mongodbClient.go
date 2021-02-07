@@ -111,9 +111,12 @@ func (m mongodbClient) GetLatestCollectionVersion(c context.Context, collection 
 }
 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
-	ver, cErr := m.getVersion(ctx, ver, collectionName)
-	if cErr != nil {
-		return cErr
+	if ver == Latest {
+		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
+		if cErr != nil {
+			return cErr
+		}
+		ver = latestVer
 	}
 	err := checkDestType(dest, true, true, false)
 	if err != nil {
@@ -140,9 +143,12 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 }
 
 func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
-	ver, cErr := m.getVersion(ctx, ver, collectionName)
-	if cErr != nil {
-		return cErr
+	if ver == Latest {
+		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
+		if cErr != nil {
+			return cErr
+		}
+		ver = latestVer
 	}
 	err := checkDestType(dest, false, true, true)
 	if err != nil {
@@ -180,10 +186,6 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 }
 
 func (m mongodbClient) GetAll(ctx context.Context, collectionName string, ver string, dest interface{}) CacheStorageError {
-	ver, cErr := m.getVersion(ctx, ver, collectionName)
-	if cErr != nil {
-		return cErr
-	}
 	return m.GetManyByIds(ctx, collectionName, nil, ver, dest)
 }
 

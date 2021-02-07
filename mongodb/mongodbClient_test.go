@@ -118,8 +118,6 @@ func TestGetLatestVersions(t *testing.T) {
 		versions, err := cacheGetter.GetLatestVersions(context.TODO())
 		So(err, ShouldBeNil)
 		So(len(versions), ShouldEqual, 4)
-		So(versions[0].CollectionName, ShouldEqual, "stores")
-		So(versions[0].Version, ShouldEqual, "2")
 	})
 }
 
