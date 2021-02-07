@@ -11,8 +11,12 @@ import (
 	"reflect"
 )
 
+const Latest = "latest"
+
 const idField = "id"
 const verField = "ver"
+
+const cacheVersionsCollectionName = "cacheVersions"
 
 type CacheWrapper struct {
 	Id   string
@@ -72,11 +76,48 @@ func getMapValueType(i interface{}) reflect.Type {
 	return reflect.TypeOf(i).Elem()
 }
 
+func (m mongodbClient) getVersion(c context.Context, ver string, collection string) (string, CacheStorageError) {
+	if ver == Latest {
+		ver, err := m.GetLatestCollectionVersion(c, collection)
+		return ver.Version, err
+	}
+	return ver, nil
+}
+
 type mongodbClient struct {
 	storage *mongodbCacheStorage
 }
 
+func (m mongodbClient) GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError) {
+	cacheVersions := make(map[string]CacheVersion)
+	var versions []CacheVersion
+	err := m.GetAll(c, cacheVersionsCollectionName, "1", cacheVersions)
+	if err != nil {
+		return versions, err
+	}
+	for i := range cacheVersions {
+		versions = append(versions, cacheVersions[i])
+	}
+	return versions, nil
+}
+
+func (m mongodbClient) GetLatestCollectionVersion(c context.Context, collection string) (CacheVersion, CacheStorageError) {
+	cacheVersion := CacheVersion{}
+	err := m.GetById(c, cacheVersionsCollectionName, collection, "1", &cacheVersion)
+	if err != nil {
+		return cacheVersion, err
+	}
+	return cacheVersion, nil
+}
+
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
+	if ver == Latest {
+		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
+		if cErr != nil {
+			return cErr
+		}
+		ver = latestVer
+	}
 	err := checkDestType(dest, true, true, false)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
@@ -102,6 +143,13 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 }
 
 func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
+	if ver == Latest {
+		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
+		if cErr != nil {
+			return cErr
+		}
+		ver = latestVer
+	}
 	err := checkDestType(dest, false, true, true)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))

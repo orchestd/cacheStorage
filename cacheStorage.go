@@ -10,10 +10,17 @@ type CacheStorageError interface {
 	Error() string
 }
 
+type CacheVersion struct {
+	CollectionName string
+	Version        string
+}
+
 type CacheStorageGetter interface {
 	GetById(c context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError
 	GetManyByIds(c context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError
 	GetAll(c context.Context, collectionName string, ver string, dest interface{}) CacheStorageError
+	GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError)
+	GetLatestCollectionVersion(c context.Context, collection string) (CacheVersion, CacheStorageError)
 }
 
 type CacheStorageSetter interface {
