@@ -31,6 +31,7 @@ var testCatalogItem2 = TestCatalogItem{Id: "2", Name: "Item2", Price: 20.30}
 var testCatalogItem3 = TestCatalogItem{Id: "3", Name: "Item3", Price: 30.40}
 var testCatalogItem4 = TestCatalogItem{Id: "4", Name: "Item4", Price: 40.50}
 var testCatalogItem5 = TestCatalogItem{Id: "5", Name: "Item5", Price: 40.50}
+var testCatalogItem6 = TestCatalogItem{Id: "5", Name: "Item5!", Price: 40.50}
 
 func initTestCollection(host string) error {
 	client, err := mongo.NewClient(options.Client().ApplyURI(host))
@@ -56,6 +57,7 @@ func initTestCollection(host string) error {
 		CacheWrapper{Id: "3", Ver: testVersion}.AddData(testCatalogItem3),
 		CacheWrapper{Id: "4", Ver: testVersion}.AddData(testCatalogItem4),
 		CacheWrapper{Id: "5", Ver: "3"}.AddData(testCatalogItem5),
+		CacheWrapper{Id: "5", Ver: "4"}.AddData(testCatalogItem6),
 	}
 	_, err = collection.InsertMany(ctx, testCatalog)
 	if err != nil {
@@ -65,7 +67,7 @@ func initTestCollection(host string) error {
 		CacheWrapper{Id: "stores", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "stores", Version: "2"}),
 		CacheWrapper{Id: "storeOpeningHours", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "storeOpeningHours", Version: "4"}),
 		CacheWrapper{Id: "occasions", Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: "occasions", Version: "7"}),
-		CacheWrapper{Id: testCollectionName, Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: testCollectionName, Version: "3"}),
+		CacheWrapper{Id: testCollectionName, Ver: "1"}.AddData(cacheStorage.CacheVersion{CollectionName: testCollectionName, Version: "4"}),
 	}
 	_, err = db.Collection(cacheVersionsCollectionName).InsertMany(ctx, testVersions)
 	if err != nil {
@@ -154,7 +156,8 @@ func TestGetById(t *testing.T) {
 	Convey("Getting latest version of an item by ID = 5", t, func() {
 		err := cacheGetter.GetById(context.TODO(), testCollectionName, "5", Latest, &testCatalogItem)
 		So(err, ShouldBeNil)
-		So(testCatalogItem.Id, ShouldEqual, testCatalogItem5.Id)
+		So(testCatalogItem.Id, ShouldEqual, testCatalogItem6.Id)
+		So(testCatalogItem.Name, ShouldEqual, testCatalogItem6.Name)
 	})
 }
 
