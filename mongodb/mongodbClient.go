@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"reflect"
+	"time"
 )
 
 const Latest = "latest"
@@ -76,19 +77,11 @@ func getMapValueType(i interface{}) reflect.Type {
 	return reflect.TypeOf(i).Elem()
 }
 
-func (m mongodbClient) getVersion(c context.Context, ver string, collection string) (string, CacheStorageError) {
-	if ver == Latest {
-		ver, err := m.GetLatestCollectionVersion(c, collection)
-		return ver.Version, err
-	}
-	return ver, nil
-}
-
 type mongodbClient struct {
 	storage *mongodbCacheStorage
 }
 
-func (m mongodbClient) GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError) {
+func (m mongodbClient) GetLatestVersions(c context.Context, now time.Time) ([]CacheVersion, CacheStorageError) {
 	cacheVersions := make(map[string]CacheVersion)
 	var versions []CacheVersion
 	err := m.GetAll(c, cacheVersionsCollectionName, "1", cacheVersions)
@@ -111,13 +104,6 @@ func (m mongodbClient) GetLatestCollectionVersion(c context.Context, collection 
 }
 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
-	if ver == Latest {
-		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
-		if cErr != nil {
-			return cErr
-		}
-		ver = latestVer
-	}
 	err := checkDestType(dest, true, true, false)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
@@ -143,13 +129,6 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 }
 
 func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
-	if ver == Latest {
-		latestVer, cErr := m.getVersion(ctx, ver, collectionName)
-		if cErr != nil {
-			return cErr
-		}
-		ver = latestVer
-	}
 	err := checkDestType(dest, false, true, true)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
