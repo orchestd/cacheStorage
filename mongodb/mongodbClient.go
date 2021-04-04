@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"reflect"
-	"time"
 )
 
 const Latest = "latest"
@@ -81,7 +80,7 @@ type mongodbClient struct {
 	storage *mongodbCacheStorage
 }
 
-func (m mongodbClient) GetLatestVersions(c context.Context, now time.Time) ([]CacheVersion, CacheStorageError) {
+func (m mongodbClient) GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError) {
 	cacheVersions := make(map[string]CacheVersion)
 	var versions []CacheVersion
 	err := m.GetAll(c, cacheVersionsCollectionName, "1", cacheVersions)
