@@ -2,6 +2,7 @@ package cacheStorage
 
 import (
 	"context"
+	"time"
 )
 
 type CacheStorageError interface {
@@ -10,9 +11,14 @@ type CacheStorageError interface {
 	Error() string
 }
 
+type Version struct {
+	Version string
+	TimedTo time.Time
+}
+
 type CacheVersion struct {
 	CollectionName string
-	Version        string
+	Versions       []Version
 }
 
 type CacheStorageGetter interface {
