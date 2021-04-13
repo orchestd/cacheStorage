@@ -15,6 +15,7 @@ require (
 	github.com/lib/pq v1.9.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/opencontainers/runc v0.1.1 // indirect
+	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/smartystreets/goconvey v1.6.4
 	go.mongodb.org/mongo-driver v1.4.4
