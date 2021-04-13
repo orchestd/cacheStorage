@@ -8,7 +8,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 )
 
-const mongoDbType = "mongodb"
+const cacheDbType = "mongodb"
 type CacheWrapperConfiguration struct {
 	ServiceName string
 	DbHost string
@@ -28,7 +28,7 @@ func NewMongoCacheStorageGetterWrapper(tracer opentracing.Tracer , conf CacheWra
 }
 func getSpanFromContext(c context.Context, operationName string,tracer opentracing.Tracer , conf CacheWrapperConfiguration) (opentracing.Span,context.Context){
 	sp , con := opentracing.StartSpanFromContextWithTracer(c,tracer,operationName)
-	ext.DBType.Set(sp,mongoDbType)
+	ext.DBType.Set(sp, cacheDbType)
 	ext.DBUser.Set(sp,conf.DbUser)
 	ext.DBInstance.Set(sp,conf.DbHost)
 	ext.DBStatement.Set(sp,operationName)
