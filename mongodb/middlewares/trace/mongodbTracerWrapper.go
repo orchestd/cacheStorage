@@ -51,7 +51,7 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 	if tags.id != nil {
 		sp.SetTag("id", *tags.id)
 	}
-	if tags.id != nil {
+	if tags.ids != nil {
 		sp.SetTag("ids", *tags.ids)
 	}
 	if tags.ver != nil {
