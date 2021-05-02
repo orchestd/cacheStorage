@@ -140,7 +140,7 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
-	foundElementsCount := 0
+	foundElementIds := make(map[string]interface{})
 	for cur.Next(ctx) {
 		var wrap CacheWrapper
 		err := cur.Decode(&wrap)
@@ -155,10 +155,20 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 			return NewMongoCacheStorageError(err)
 		}
 		reflect.ValueOf(dest).SetMapIndex(reflect.ValueOf(wrap.Id), destItem)
-		foundElementsCount++
+		foundElementIds[wrap.Id] = nil
 	}
-	if foundElementsCount < len(ids) {
-		return NewMongoCacheStorageError(NotFoundError)
+	if len(foundElementIds) < len(ids) {
+		var notFoundElements []string
+		for _, id := range ids {
+			if _, ok := foundElementIds[id]; !ok {
+				notFoundElements = append(notFoundElements, id)
+			}
+		}
+		// len == 0 meaning the func got ids with duplicates
+		if len(notFoundElements) > 0 {
+			err := fmt.Errorf("elements with id: %v not found in collection %v by version %v", notFoundElements, collectionName, ver)
+			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, err))
+		}
 	}
 	return nil
 }

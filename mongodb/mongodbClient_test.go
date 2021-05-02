@@ -200,6 +200,13 @@ func TestGetManyByIds(t *testing.T) {
 		So(err.IsNotFound(), ShouldBeTrue)
 		So(len(testCatalogItems), ShouldEqual, 2)
 	})
+
+	Convey("Getting list of existing items with duplicates", t, func() {
+		testCatalogItems := make(map[string]TestCatalogItem)
+		err := cacheGetter.GetManyByIds(context.TODO(), testCollectionName, []string{"1", "1", "2"}, testVersion, testCatalogItems)
+		So(err, ShouldBeNil)
+		So(len(testCatalogItems), ShouldEqual, 2)
+	})
 }
 
 func TestGetAll(t *testing.T) {
