@@ -140,7 +140,7 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
-	foundElementIds := make(map[string]interface{})
+	foundElementIds := make(map[string]bool)
 	for cur.Next(ctx) {
 		var wrap CacheWrapper
 		err := cur.Decode(&wrap)
@@ -155,7 +155,7 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 			return NewMongoCacheStorageError(err)
 		}
 		reflect.ValueOf(dest).SetMapIndex(reflect.ValueOf(wrap.Id), destItem)
-		foundElementIds[wrap.Id] = nil
+		foundElementIds[wrap.Id] = true
 	}
 	if len(foundElementIds) < len(ids) {
 		var notFoundElements []string
