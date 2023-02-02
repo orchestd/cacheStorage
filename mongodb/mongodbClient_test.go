@@ -1,10 +1,9 @@
 package mongodb
 
 import (
-	"bitbucket.org/HeilaSystems/cacheStorage"
-	"bitbucket.org/HeilaSystems/helpers/dateTime"
 	"context"
 	"fmt"
+	"github.com/orchestd/cacheStorage"
 	"github.com/ory/dockertest"
 	. "github.com/smartystreets/goconvey/convey"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,7 +33,12 @@ var testCatalogItem4 = TestCatalogItem{Id: "4", Name: "Item4", Price: 40.50}
 var testCatalogItem5 = TestCatalogItem{Id: "5", Name: "Item5", Price: 40.50}
 var testCatalogItem6 = TestCatalogItem{Id: "5", Name: "Item5!", Price: 40.50}
 
-var fakeNow = dateTime.TrustedTimeParse("2021-02-02 11:11:11", "2006-01-02 15:04:05")
+func trustedTimeParse(t, layout string) time.Time {
+	r, _ := time.Parse(layout, t)
+	return r
+}
+
+var fakeNow = trustedTimeParse("2021-02-02 11:11:11", "2006-01-02 15:04:05")
 
 func initTestCollection(host string) error {
 	client, err := mongo.NewClient(options.Client().ApplyURI(host))
@@ -69,19 +73,19 @@ func initTestCollection(host string) error {
 	testVersions := []interface{}{
 		CacheWrapper{Id: "stores", Ver: "1"}.AddData(cacheStorage.CacheVersion{
 			CollectionName: "stores",
-			Versions: []cacheStorage.Version{{Version: "2", TimedTo: dateTime.TrustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
+			Versions:       []cacheStorage.Version{{Version: "2", TimedTo: trustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
 		}),
 		CacheWrapper{Id: "storeOpeningHours", Ver: "1"}.AddData(cacheStorage.CacheVersion{
 			CollectionName: "storeOpeningHours",
-			Versions: []cacheStorage.Version{{Version: "4", TimedTo: dateTime.TrustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
+			Versions:       []cacheStorage.Version{{Version: "4", TimedTo: trustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
 		}),
 		CacheWrapper{Id: "occasions", Ver: "1"}.AddData(cacheStorage.CacheVersion{
 			CollectionName: "occasions",
-			Versions: []cacheStorage.Version{{Version: "7", TimedTo: dateTime.TrustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
+			Versions:       []cacheStorage.Version{{Version: "7", TimedTo: trustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
 		}),
 		CacheWrapper{Id: testCollectionName, Ver: "1"}.AddData(cacheStorage.CacheVersion{
 			CollectionName: testCollectionName,
-			Versions: []cacheStorage.Version{{Version: "4", TimedTo: dateTime.TrustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
+			Versions:       []cacheStorage.Version{{Version: "4", TimedTo: trustedTimeParse("2021-01-01 00:00:00", "2006-01-02 15:04:05")}},
 		}),
 	}
 	_, err = db.Collection(cacheVersionsCollectionName).InsertMany(ctx, testVersions)
