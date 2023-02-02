@@ -1,13 +1,12 @@
 package middlewares
 
-import "bitbucket.org/HeilaSystems/cacheStorage"
-
+import "github.com/orchestd/cacheStorage"
 
 type cacheGetterWrapper struct {
 	cacheStorage.CacheStorageGetter
 }
 
-func CreateCacheGetterWrapper(cacheGetter cacheStorage.CacheStorageGetter, middlewares ...cacheStorage.CacheStorageGetterMiddleware)cacheStorage.CacheStorageGetterWrapper {
+func CreateCacheGetterWrapper(cacheGetter cacheStorage.CacheStorageGetter, middlewares ...cacheStorage.CacheStorageGetterMiddleware) cacheStorage.CacheStorageGetterWrapper {
 	for _, middleware := range middlewares {
 		cacheGetter = middleware(cacheGetter)
 	}
@@ -18,10 +17,9 @@ func CreateCacheGetterWrapper(cacheGetter cacheStorage.CacheStorageGetter, middl
 
 type cacheSetterWrapper struct {
 	cacheStorage.CacheStorageSetter
-
 }
 
-func CreateCacheSetterWrapper(cacheSetter cacheStorage.CacheStorageSetter,middlewares ...cacheStorage.CacheStorageSetterMiddleware)cacheStorage.CacheStorageSetterWrapper {
+func CreateCacheSetterWrapper(cacheSetter cacheStorage.CacheStorageSetter, middlewares ...cacheStorage.CacheStorageSetterMiddleware) cacheStorage.CacheStorageSetterWrapper {
 	for _, middleware := range middlewares {
 		cacheSetter = middleware(cacheSetter)
 	}
@@ -29,5 +27,3 @@ func CreateCacheSetterWrapper(cacheSetter cacheStorage.CacheStorageSetter,middle
 		CacheStorageSetter: cacheSetter,
 	}
 }
-
-
