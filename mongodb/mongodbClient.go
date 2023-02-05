@@ -7,8 +7,10 @@ import (
 	. "github.com/orchestd/cacheStorage"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"reflect"
+	"time"
 )
 
 const Latest = "latest"
@@ -18,10 +20,16 @@ const verField = "ver"
 
 const cacheVersionsCollectionName = "cacheVersions"
 
+type LockedItem struct {
+	LockedAt time.Time `json:"lockedAt"`
+	LockedBy string    `json:"lockedBy"`
+}
+
 type CacheWrapper struct {
-	Id   string
-	Ver  string
-	Data string
+	Id     string      `json:"id"`
+	Ver    string      `json:"ver"`
+	Data   string      `json:"data"`
+	Locked *LockedItem `json:"locked"`
 }
 
 /*
@@ -57,7 +65,7 @@ func (w CacheWrapper) ExtractData(i interface{}) error {
 	return err
 }
 
-func checkDestType(i interface{}, pointer, nonNil, isMap bool) error {
+func checkDestType(i interface{}, pointer, nonNil, isMap bool, isSlice bool) error {
 	value := reflect.ValueOf(i)
 	if pointer && value.Kind() != reflect.Ptr {
 		return fmt.Errorf("dest must be a pointer, not a value")
@@ -68,6 +76,9 @@ func checkDestType(i interface{}, pointer, nonNil, isMap bool) error {
 	direct := reflect.Indirect(value)
 	if isMap && direct.Kind() != reflect.Map {
 		return fmt.Errorf("dest must be a map[string]yourCacheType")
+	}
+	if isSlice && direct.Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be a Slice[]yourCacheType and not %v", direct.Kind())
 	}
 	return nil
 }
@@ -103,7 +114,7 @@ func (m mongodbClient) GetLatestCollectionVersion(c context.Context, collection 
 }
 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
-	err := checkDestType(dest, true, true, false)
+	err := checkDestType(dest, true, true, false, false)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
 	}
@@ -127,14 +138,14 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 	return nil
 }
 
-func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
-	err := checkDestType(dest, false, true, true)
+func (m mongodbClient) getMany(ctx context.Context, collectionName string, filterByIds []string, ver string, dest interface{}) CacheStorageError {
+	err := checkDestType(dest, false, true, true, false)
 	if err != nil {
 		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
 	}
 	filter := bson.M{verField: ver}
-	if len(ids) > 0 {
-		filter = bson.M{verField: ver, idField: bson.M{"$in": ids}}
+	if len(filterByIds) > 0 {
+		filter = bson.M{verField: ver, idField: bson.M{"$in": filterByIds}}
 	}
 	cur, err := m.storage.database.Collection(collectionName).Find(ctx, filter)
 	if err != nil {
@@ -157,9 +168,9 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 		reflect.ValueOf(dest).SetMapIndex(reflect.ValueOf(wrap.Id), destItem)
 		foundElementIds[wrap.Id] = true
 	}
-	if len(foundElementIds) < len(ids) {
+	if len(foundElementIds) < len(filterByIds) {
 		var notFoundElements []string
-		for _, id := range ids {
+		for _, id := range filterByIds {
 			if _, ok := foundElementIds[id]; !ok {
 				notFoundElements = append(notFoundElements, id)
 			}
@@ -173,8 +184,44 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 	return nil
 }
 
+func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, ids []string, ver string, dest interface{}) CacheStorageError {
+	if len(ids) == 0 {
+		return nil
+	}
+	return m.getMany(ctx, collectionName, ids, ver, dest)
+}
+
+func (m mongodbClient) GetArrayBySingleId(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
+	err := checkDestType(dest, false, true, false, true)
+	if err != nil {
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
+	}
+	cur, err := m.storage.database.Collection(collectionName).Find(ctx, bson.M{idField: id, verField: ver})
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+
+	destVal := reflect.ValueOf(dest).Elem()
+	for cur.Next(ctx) {
+		var wrap CacheWrapper
+		err := cur.Decode(&wrap)
+		if err != nil {
+			return NewMongoCacheStorageError(err)
+		}
+		destItemP := reflect.New(destVal.Type().Elem())
+		destItem := reflect.Indirect(destItemP)
+		err = wrap.ExtractData(destItemP.Interface())
+		if err != nil {
+			return NewMongoCacheStorageError(err)
+		}
+		destVal.Set(reflect.Append(destVal, destItem))
+
+	}
+	return nil
+}
+
 func (m mongodbClient) GetAll(ctx context.Context, collectionName string, ver string, dest interface{}) CacheStorageError {
-	return m.GetManyByIds(ctx, collectionName, nil, ver, dest)
+	return m.getMany(ctx, collectionName, nil, ver, dest)
 }
 
 func (m mongodbClient) Insert(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
@@ -226,6 +273,71 @@ func (m mongodbClient) Remove(ctx context.Context, collectionName string, id str
 
 func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver string) CacheStorageError {
 	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{})
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
+}
+
+func (m mongodbClient) GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError {
+	traceId := c.Value("Uber-Trace-Id")
+	update := []bson.M{
+		{
+			"$set": bson.M{
+				"locked": bson.M{
+					"$cond": bson.M{
+						"if": bson.M{
+							"$or": []bson.M{
+								{"$eq": bson.A{"$locked", nil}},
+								{"$ne": bson.A{bson.M{"$type": "$locked"}, "object"}},
+								{"$gt": bson.A{
+									bson.M{"$dateDiff": bson.M{"startDate": "$locked.lockedAt", "endDate": "$$NOW", "unit": "second"}}, 30},
+								},
+							},
+						},
+						"then": bson.M{"lockedAt": "$$NOW", "lockedBy": traceId},
+						"else": "$locked",
+					},
+				},
+			},
+		},
+	}
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	for {
+		result := m.storage.database.Collection(collectionName).FindOneAndUpdate(c, bson.M{idField: id}, update, opts)
+		if result.Err() != nil {
+			if result.Err() == mongo.ErrNoDocuments {
+				return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()))
+			} else {
+				return NewMongoCacheStorageError(result.Err())
+			}
+		}
+		var wrap CacheWrapper
+		err := result.Decode(&wrap)
+		if err != nil {
+			return NewMongoCacheStorageError(err)
+		}
+		if wrap.Locked.LockedBy != traceId {
+			time.Sleep(50 * time.Millisecond)
+		} else {
+			err := wrap.ExtractData(dest)
+			if err != nil {
+				return NewMongoCacheStorageError(err)
+			}
+			return nil
+		}
+	}
+}
+
+/*ReleaseLockedById in most cases will do nothing, cause the "update" function inserts a record without a lock and
+therefore "automatically releases" the record a specific session locked*/
+func (m mongodbClient) ReleaseLockedById(c context.Context, collectionName string, id string) CacheStorageError {
+	traceId := c.Value("Uber-Trace-Id")
+
+	filter := bson.M{idField: id, "locked.lockedBy": traceId}
+	update := []bson.M{{"$set": bson.M{"locked": nil}}}
+	_, err := m.storage.database.Collection(collectionName).UpdateOne(c, filter, update)
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
