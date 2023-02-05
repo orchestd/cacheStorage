@@ -1,11 +1,11 @@
 package trace
 
 import (
+	"github.com/orchestd/cacheStorage"
+	. "github.com/orchestd/HeilaSystems/cacheStorage"
 	"context"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/orchestd/cacheStorage"
-	. "github.com/orchestd/cacheStorage"
 )
 
 const cacheDbType = "mongodb"
@@ -105,6 +105,21 @@ func (m mongoCacheStorageGetterWrapper) GetManyByIds(c context.Context, collecti
 		collection: &collectionName,
 		ver:        &ver,
 		ids:        &ids,
+	}, f)
+	return err
+
+}
+
+func (m mongoCacheStorageGetterWrapper) GetArrayBySingleId(c context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
+	f := func(con context.Context) (err CacheStorageError) {
+		err = m.cacheStorageGetter.GetArrayBySingleId(con, collectionName, id, ver, dest)
+		return err
+	}
+
+	err := runMongoFuncWithTrace(c, "mongodb.driver/GetArrayBySingleId", m.tracer, m.conf, CacheTags{
+		collection: &collectionName,
+		ver:        &ver,
+		id:         &id,
 	}, f)
 	return err
 
@@ -227,6 +242,28 @@ func (m mongoCacheStorageSetterWrapper) RemoveAll(c context.Context, collectionN
 	err := runMongoFuncWithTrace(c, "mongodb.driver/RemoveAll", m.tracer, m.conf, CacheTags{
 		collection: &collectionName,
 		ver:        &ver,
+	}, f)
+	return err
+}
+
+func (m mongoCacheStorageSetterWrapper) GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError {
+	f := func(con context.Context) (err CacheStorageError) {
+		err = m.cacheStorageSetter.GetAndLockById(con, collectionName, id, dest)
+		return err
+	}
+	err := runMongoFuncWithTrace(c, "mongodb.driver/getAndLockById", m.tracer, m.conf, CacheTags{
+		collection: &collectionName,
+	}, f)
+	return err
+}
+
+func (m mongoCacheStorageSetterWrapper) ReleaseLockedById(c context.Context, collectionName string, id string) CacheStorageError {
+	f := func(con context.Context) (err CacheStorageError) {
+		err = m.cacheStorageSetter.ReleaseLockedById(con, collectionName, id)
+		return err
+	}
+	err := runMongoFuncWithTrace(c, "mongodb.driver/releaseLockedById", m.tracer, m.conf, CacheTags{
+		collection: &collectionName,
 	}, f)
 	return err
 }
