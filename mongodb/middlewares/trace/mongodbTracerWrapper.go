@@ -1,11 +1,11 @@
 package trace
 
 import (
-	"github.com/orchestd/cacheStorage"
-	. "github.com/orchestd/HeilaSystems/cacheStorage"
 	"context"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/orchestd/cacheStorage"
+	. "github.com/orchestd/cacheStorage"
 )
 
 const cacheDbType = "mongodb"
