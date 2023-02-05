@@ -16,8 +16,12 @@ func NewMongoDbCacheStorage() cacheStorage.CacheStorage {
 	return &mongodbCacheStorage{}
 }
 
-func (s *mongodbCacheStorage) Connect(c context.Context, connectionString string, database string) error {
-	client, err := mongo.NewClient(options.Client().ApplyURI(connectionString))
+func (s *mongodbCacheStorage) Connect(c context.Context, host, userName, userPw, database string) error {
+	credential := options.Credential{
+		Username: userName,
+		Password: userPw,
+	}
+	client, err := mongo.NewClient(options.Client().ApplyURI(host).SetAuth(credential))
 	if err != nil {
 		return err
 	}

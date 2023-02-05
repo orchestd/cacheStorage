@@ -20,7 +20,7 @@ type CacheVersion struct {
 	CollectionName string
 	Versions       []Version
 }
-type CacheStorageGetterMiddleware func(cacheStorageGetter CacheStorageGetter ) CacheStorageGetter
+type CacheStorageGetterMiddleware func(cacheStorageGetter CacheStorageGetter) CacheStorageGetter
 
 type CacheStorageGetter interface {
 	GetById(c context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError
@@ -28,6 +28,9 @@ type CacheStorageGetter interface {
 	GetAll(c context.Context, collectionName string, ver string, dest interface{}) CacheStorageError
 	GetLatestVersions(c context.Context) ([]CacheVersion, CacheStorageError)
 	GetLatestCollectionVersion(c context.Context, collection string) (CacheVersion, CacheStorageError)
+
+	/*TODO: move to persistent storage*/
+	GetArrayBySingleId(c context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError
 }
 type CacheStorageGetterWrapper interface {
 	CacheStorageGetter
@@ -39,6 +42,10 @@ type CacheStorageSetter interface {
 	Update(c context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError
 	Remove(c context.Context, collectionName string, id string, ver string) CacheStorageError
 	RemoveAll(c context.Context, collectionName string, ver string) CacheStorageError
+
+	/*TODO: move to persistent storage*/
+	GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError
+	ReleaseLockedById(c context.Context, collectionName string, id string) CacheStorageError
 }
 
 type CacheStorageSetterMiddleware func(setter CacheStorageSetter) CacheStorageSetter
@@ -48,7 +55,7 @@ type CacheStorageSetterWrapper interface {
 }
 
 type CacheStorage interface {
-	Connect(c context.Context, connectionString string, database string) error
+	Connect(c context.Context, host, userName, userPw, database string) error
 	Close(context.Context) error
 	GetCacheStorageClient() (CacheStorageGetter, CacheStorageSetter)
 }
