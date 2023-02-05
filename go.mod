@@ -19,6 +19,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	go.mongodb.org/mongo-driver v1.4.4
 	gotest.tools v2.2.0+incompatible // indirect
+	
 )
 
 replace golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
