@@ -72,6 +72,7 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 		}
 		return err
 	}
+	sp.SetTag("found", "true")
 	return nil
 }
 
