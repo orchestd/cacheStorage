@@ -67,8 +67,8 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 		//handling by logic
 		if !err.IsNotFound() {
 			ext.LogError(sp, err)
-			return err
 		}
+		return err
 	}
 	return nil
 }
