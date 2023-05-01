@@ -64,8 +64,11 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 		sp.SetTag("items", tags.items)
 	}
 	if err := funcToRun(con); err != nil {
-		ext.LogError(sp, err)
-		return err
+		//handling by logic
+		if !err.IsNotFound() {
+			ext.LogError(sp, err)
+			return err
+		}
 	}
 	return nil
 }
