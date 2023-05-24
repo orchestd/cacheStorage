@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/orchestd/cacheStorage"
@@ -63,7 +64,8 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 	if tags.items != nil {
 		sp.SetTag("items", tags.items)
 	}
-	sp.SetTag("token", c.Value("token"))
+	token := fmt.Sprint(c.Value("token"))
+	sp.SetTag("token", token[:12])
 	if err := funcToRun(con); err != nil {
 		//handling by logic
 		if err.IsNotFound() {
