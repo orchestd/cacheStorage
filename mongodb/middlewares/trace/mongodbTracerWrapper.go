@@ -63,6 +63,7 @@ func runMongoFuncWithTrace(c context.Context, operationName string, tracer opent
 	if tags.items != nil {
 		sp.SetTag("items", tags.items)
 	}
+	sp.SetTag("token", c.Value("token"))
 	if err := funcToRun(con); err != nil {
 		//handling by logic
 		if err.IsNotFound() {
