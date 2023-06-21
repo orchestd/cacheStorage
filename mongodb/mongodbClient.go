@@ -272,7 +272,7 @@ func (m mongodbClient) Remove(ctx context.Context, collectionName string, id str
 }
 
 func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver string) CacheStorageError {
-	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{})
+	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{"ver": ver})
 	if err != nil {
 		return NewMongoCacheStorageError(err)
 	}
@@ -330,8 +330,10 @@ func (m mongodbClient) GetAndLockById(c context.Context, collectionName string, 
 	}
 }
 
-/*ReleaseLockedById in most cases will do nothing, cause the "update" function inserts a record without a lock and
-therefore "automatically releases" the record a specific session locked*/
+/*
+ReleaseLockedById in most cases will do nothing, cause the "update" function inserts a record without a lock and
+therefore "automatically releases" the record a specific session locked
+*/
 func (m mongodbClient) ReleaseLockedById(c context.Context, collectionName string, id string) CacheStorageError {
 	traceId := c.Value("Uber-Trace-Id")
 
