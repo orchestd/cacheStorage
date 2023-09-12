@@ -10,6 +10,7 @@ require (
 	github.com/containerd/continuity v0.0.0-20201208142359-180525291bb7 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
 	github.com/lib/pq v1.9.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
@@ -17,9 +18,8 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/smartystreets/goconvey v1.6.4
-	go.mongodb.org/mongo-driver v1.4.4
+	go.mongodb.org/mongo-driver v1.12.1
 	gotest.tools v2.2.0+incompatible // indirect
-	
 )
 
 replace golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
