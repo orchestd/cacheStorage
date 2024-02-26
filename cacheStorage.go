@@ -16,11 +16,6 @@ type Version struct {
 	TimedTo time.Time
 }
 
-const (
-	CacheTypeCatalog = "catalog"
-	CacheTypeData    = "data"
-)
-
 type CacheVersion struct {
 	CollectionName  string
 	Versions        []Version
