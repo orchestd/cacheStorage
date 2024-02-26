@@ -20,6 +20,7 @@ type CacheVersion struct {
 	CollectionName  string
 	Versions        []Version
 	LockVersionUpon []string
+	CacheType       string
 }
 
 type CacheStorageGetterMiddleware func(cacheStorageGetter CacheStorageGetter) CacheStorageGetter
