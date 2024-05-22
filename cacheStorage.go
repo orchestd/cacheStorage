@@ -9,6 +9,7 @@ type CacheStorageError interface {
 	IsNotFound() bool
 	IsInvalidDestType() bool
 	Error() string
+	IsVersMandatory() bool
 }
 
 type Version struct {
@@ -45,6 +46,8 @@ type CacheStorageSetter interface {
 	Update(c context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError
 	Remove(c context.Context, collectionName string, id string, ver string) CacheStorageError
 	RemoveAll(c context.Context, collectionName string, ver string) CacheStorageError
+
+	RemoveAllVersExcept(ctx context.Context, collectionName string, vers []string) CacheStorageError
 
 	/*TODO: move to persistent storage*/
 	GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError

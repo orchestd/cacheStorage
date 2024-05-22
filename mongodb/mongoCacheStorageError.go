@@ -4,6 +4,7 @@ import "errors"
 
 var NotFoundError = errors.New("Not found")
 var InvalidDestType = errors.New("Invalid dest type")
+var VersIsMandatory = errors.New("Vers field is mandatory")
 
 type mongoCacheStorageError struct {
 	err error
@@ -23,4 +24,8 @@ func (e mongoCacheStorageError) IsNotFound() bool {
 
 func (e mongoCacheStorageError) IsInvalidDestType() bool {
 	return errors.Is(e.err, InvalidDestType)
+}
+
+func (e mongoCacheStorageError) IsVersMandatory() bool {
+	return errors.Is(e.err, VersIsMandatory)
 }
