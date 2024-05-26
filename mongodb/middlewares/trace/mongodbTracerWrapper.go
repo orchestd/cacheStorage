@@ -258,17 +258,14 @@ func (m mongoCacheStorageSetterWrapper) RemoveAll(c context.Context, collectionN
 }
 
 func (m mongoCacheStorageSetterWrapper) RemoveAllVersExcept(c context.Context, collectionName string, vers []string) CacheStorageError {
-	var ver string
-	for i, v := range vers {
-		ver += fmt.Sprintf("Ver%v:%v", i, v)
-	}
+	verStr := fmt.Sprintf("%v", vers)
 	f := func(con context.Context) (err CacheStorageError) {
 		err = m.cacheStorageSetter.RemoveAllVersExcept(con, collectionName, vers)
 		return err
 	}
 	err := runMongoFuncWithTrace(c, "mongodb.driver/RemoveAllVersExcept", m.tracer, m.conf, CacheTags{
 		collection: &collectionName,
-		ver:        &ver,
+		ver:        &verStr,
 	}, f)
 	return err
 }

@@ -280,9 +280,6 @@ func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver
 }
 
 func (m mongodbClient) RemoveAllVersExcept(ctx context.Context, collectionName string, vers []string) CacheStorageError {
-	if len(vers) == 0 {
-		return NewMongoCacheStorageError(VersIsMandatory)
-	}
 	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{"ver": bson.M{"$nin": vers}})
 	if err != nil {
 		return NewMongoCacheStorageError(err)

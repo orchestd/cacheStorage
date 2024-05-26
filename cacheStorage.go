@@ -9,7 +9,6 @@ type CacheStorageError interface {
 	IsNotFound() bool
 	IsInvalidDestType() bool
 	Error() string
-	IsVersMandatory() bool
 }
 
 type Version struct {
