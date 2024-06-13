@@ -116,24 +116,24 @@ func (m mongodbClient) GetLatestCollectionVersion(c context.Context, collection 
 func (m mongodbClient) GetById(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
 	err := checkDestType(dest, true, true, false, false)
 	if err != nil {
-		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err), nil)
 	}
 	result := m.storage.database.Collection(collectionName).FindOne(ctx, bson.M{idField: id, verField: ver})
 	if result.Err() != nil {
 		if result.Err() == mongo.ErrNoDocuments {
-			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()))
+			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()), nil)
 		} else {
-			return NewMongoCacheStorageError(result.Err())
+			return NewMongoCacheStorageError(result.Err(), nil)
 		}
 	}
 	var wrap CacheWrapper
 	err = result.Decode(&wrap)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	err = wrap.ExtractData(dest)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
@@ -141,7 +141,7 @@ func (m mongodbClient) GetById(ctx context.Context, collectionName string, id st
 func (m mongodbClient) getMany(ctx context.Context, collectionName string, filterByIds []string, ver string, dest interface{}) CacheStorageError {
 	err := checkDestType(dest, false, true, true, false)
 	if err != nil {
-		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err), nil)
 	}
 	filter := bson.M{verField: ver}
 	if len(filterByIds) > 0 {
@@ -149,21 +149,21 @@ func (m mongodbClient) getMany(ctx context.Context, collectionName string, filte
 	}
 	cur, err := m.storage.database.Collection(collectionName).Find(ctx, filter)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	foundElementIds := make(map[string]bool)
 	for cur.Next(ctx) {
 		var wrap CacheWrapper
 		err := cur.Decode(&wrap)
 		if err != nil {
-			return NewMongoCacheStorageError(err)
+			return NewMongoCacheStorageError(err, nil)
 		}
 		destItemType := getMapValueType(dest)
 		destItemP := reflect.New(destItemType)
 		destItem := reflect.Indirect(destItemP)
 		err = wrap.ExtractData(destItemP.Interface())
 		if err != nil {
-			return NewMongoCacheStorageError(err)
+			return NewMongoCacheStorageError(err, nil)
 		}
 		reflect.ValueOf(dest).SetMapIndex(reflect.ValueOf(wrap.Id), destItem)
 		foundElementIds[wrap.Id] = true
@@ -178,7 +178,7 @@ func (m mongodbClient) getMany(ctx context.Context, collectionName string, filte
 		// len == 0 meaning the func got ids with duplicates
 		if len(notFoundElements) > 0 {
 			err := fmt.Errorf("elements with id: %v not found in collection %v by version %v", notFoundElements, collectionName, ver)
-			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, err))
+			return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, err), notFoundElements)
 		}
 	}
 	return nil
@@ -194,11 +194,11 @@ func (m mongodbClient) GetManyByIds(ctx context.Context, collectionName string, 
 func (m mongodbClient) GetArrayBySingleId(ctx context.Context, collectionName string, id string, ver string, dest interface{}) CacheStorageError {
 	err := checkDestType(dest, false, true, false, true)
 	if err != nil {
-		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err))
+		return NewMongoCacheStorageError(fmt.Errorf("%w: %q", InvalidDestType, err), nil)
 	}
 	cur, err := m.storage.database.Collection(collectionName).Find(ctx, bson.M{idField: id, verField: ver})
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 
 	destVal := reflect.ValueOf(dest).Elem()
@@ -206,13 +206,13 @@ func (m mongodbClient) GetArrayBySingleId(ctx context.Context, collectionName st
 		var wrap CacheWrapper
 		err := cur.Decode(&wrap)
 		if err != nil {
-			return NewMongoCacheStorageError(err)
+			return NewMongoCacheStorageError(err, nil)
 		}
 		destItemP := reflect.New(destVal.Type().Elem())
 		destItem := reflect.Indirect(destItemP)
 		err = wrap.ExtractData(destItemP.Interface())
 		if err != nil {
-			return NewMongoCacheStorageError(err)
+			return NewMongoCacheStorageError(err, nil)
 		}
 		destVal.Set(reflect.Append(destVal, destItem))
 
@@ -228,7 +228,7 @@ func (m mongodbClient) Insert(ctx context.Context, collectionName string, id str
 	wrap := CacheWrapper{Id: id, Ver: ver}.AddData(item)
 	_, err := m.storage.database.Collection(collectionName).InsertOne(ctx, wrap)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
@@ -240,14 +240,14 @@ func (m mongodbClient) InsertMany(ctx context.Context, collectionName string, ve
 	}
 	_, err := m.storage.database.Collection(collectionName).InsertMany(ctx, wraps)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
 
 func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
 	if count, err := m.storage.database.Collection(collectionName).CountDocuments(ctx, bson.M{idField: id, verField: ver}); err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	} else if count > 0 {
 		return m.Update(ctx, collectionName, id, ver, item)
 	} else {
@@ -258,7 +258,7 @@ func (m mongodbClient) InsertOrUpdate(ctx context.Context, collectionName string
 func (m mongodbClient) Update(ctx context.Context, collectionName string, id string, ver string, item interface{}) CacheStorageError {
 	_, err := m.storage.database.Collection(collectionName).ReplaceOne(ctx, bson.M{idField: id, verField: ver}, CacheWrapper{Id: id, Ver: ver}.AddData(item))
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
@@ -266,7 +266,7 @@ func (m mongodbClient) Update(ctx context.Context, collectionName string, id str
 func (m mongodbClient) Remove(ctx context.Context, collectionName string, id string, ver string) CacheStorageError {
 	_, err := m.storage.database.Collection(collectionName).DeleteOne(ctx, bson.M{idField: id, verField: ver})
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
@@ -274,7 +274,7 @@ func (m mongodbClient) Remove(ctx context.Context, collectionName string, id str
 func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver string) CacheStorageError {
 	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{"ver": ver})
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
@@ -308,22 +308,22 @@ func (m mongodbClient) GetAndLockById(c context.Context, collectionName string, 
 		result := m.storage.database.Collection(collectionName).FindOneAndUpdate(c, bson.M{idField: id}, update, opts)
 		if result.Err() != nil {
 			if result.Err() == mongo.ErrNoDocuments {
-				return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()))
+				return NewMongoCacheStorageError(fmt.Errorf("%w: %q", NotFoundError, result.Err()), nil)
 			} else {
-				return NewMongoCacheStorageError(result.Err())
+				return NewMongoCacheStorageError(result.Err(), nil)
 			}
 		}
 		var wrap CacheWrapper
 		err := result.Decode(&wrap)
 		if err != nil {
-			return NewMongoCacheStorageError(err)
+			return NewMongoCacheStorageError(err, nil)
 		}
 		if wrap.Locked.LockedBy != traceId {
 			time.Sleep(50 * time.Millisecond)
 		} else {
 			err := wrap.ExtractData(dest)
 			if err != nil {
-				return NewMongoCacheStorageError(err)
+				return NewMongoCacheStorageError(err, nil)
 			}
 			return nil
 		}
@@ -341,7 +341,7 @@ func (m mongodbClient) ReleaseLockedById(c context.Context, collectionName strin
 	update := []bson.M{{"$set": bson.M{"locked": nil}}}
 	_, err := m.storage.database.Collection(collectionName).UpdateOne(c, filter, update)
 	if err != nil {
-		return NewMongoCacheStorageError(err)
+		return NewMongoCacheStorageError(err, nil)
 	}
 	return nil
 }
