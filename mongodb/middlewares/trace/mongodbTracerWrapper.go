@@ -33,6 +33,11 @@ type mongoCacheStorageGetterWrapper struct {
 }
 
 func NewMongoCacheStorageGetterWrapper(tracer opentracing.Tracer, conf CacheWrapperConfiguration) CacheStorageGetterMiddleware {
+	if tracer == nil {
+		return func(cacheStorageGetter CacheStorageGetter) CacheStorageGetter {
+			return cacheStorageGetter
+		}
+	}
 	return func(cacheStorageGetter cacheStorage.CacheStorageGetter) CacheStorageGetter {
 		return &mongoCacheStorageGetterWrapper{cacheStorageGetter: cacheStorageGetter, tracer: tracer, conf: conf}
 	}
@@ -170,6 +175,11 @@ type mongoCacheStorageSetterWrapper struct {
 }
 
 func NewMongoCacheStorageSetterWrapper(tracer opentracing.Tracer, conf CacheWrapperConfiguration) CacheStorageSetterMiddleware {
+	if tracer == nil {
+		return func(cacheStorageSetter cacheStorage.CacheStorageSetter) CacheStorageSetter {
+			return cacheStorageSetter
+		}
+	}
 	return func(cacheStorageSetter cacheStorage.CacheStorageSetter) CacheStorageSetter {
 		return &mongoCacheStorageSetterWrapper{cacheStorageSetter: cacheStorageSetter, tracer: tracer, conf: conf}
 	}
