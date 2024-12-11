@@ -279,6 +279,14 @@ func (m mongodbClient) RemoveAll(ctx context.Context, collectionName string, ver
 	return nil
 }
 
+func (m mongodbClient) RemoveAllVersExcept(ctx context.Context, collectionName string, vers []string) CacheStorageError {
+	_, err := m.storage.database.Collection(collectionName).DeleteMany(ctx, bson.M{"ver": bson.M{"$nin": vers}})
+	if err != nil {
+		return NewMongoCacheStorageError(err)
+	}
+	return nil
+}
+
 func (m mongodbClient) GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError {
 	traceId := c.Value("Uber-Trace-Id")
 	update := []bson.M{

@@ -267,6 +267,19 @@ func (m mongoCacheStorageSetterWrapper) RemoveAll(c context.Context, collectionN
 	return err
 }
 
+func (m mongoCacheStorageSetterWrapper) RemoveAllVersExcept(c context.Context, collectionName string, vers []string) CacheStorageError {
+	verStr := fmt.Sprintf("%v", vers)
+	f := func(con context.Context) (err CacheStorageError) {
+		err = m.cacheStorageSetter.RemoveAllVersExcept(con, collectionName, vers)
+		return err
+	}
+	err := runMongoFuncWithTrace(c, "mongodb.driver/RemoveAllVersExcept", m.tracer, m.conf, CacheTags{
+		collection: &collectionName,
+		ver:        &verStr,
+	}, f)
+	return err
+}
+
 func (m mongoCacheStorageSetterWrapper) GetAndLockById(c context.Context, collectionName string, id string, dest interface{}) CacheStorageError {
 	f := func(con context.Context) (err CacheStorageError) {
 		err = m.cacheStorageSetter.GetAndLockById(con, collectionName, id, dest)
