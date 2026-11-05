@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+
 	"github.com/orchestd/cacheStorage"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -12,7 +13,15 @@ type mongodbCacheStorage struct {
 	database *mongo.Database
 }
 
+type MongoDbDataStorage interface {
+	GetCollection(collectionName string) *mongo.Collection
+}
+
 func NewMongoDbCacheStorage() cacheStorage.CacheStorage {
+	return &mongodbCacheStorage{}
+}
+
+func NewMongoDbDataStorage() MongoDbDataStorage {
 	return &mongodbCacheStorage{}
 }
 
@@ -32,6 +41,10 @@ func (s *mongodbCacheStorage) Connect(c context.Context, host, userName, userPw,
 	}
 	s.database = client.Database(database)
 	return nil
+}
+
+func (s *mongodbCacheStorage) GetCollection(collectionName string) *mongo.Collection {
+	return s.database.Collection(collectionName)
 }
 
 func (s mongodbCacheStorage) Close(c context.Context) error {
