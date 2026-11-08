@@ -13,15 +13,7 @@ type mongodbCacheStorage struct {
 	database *mongo.Database
 }
 
-type MongoDbDataStorage interface {
-	GetCollection(collectionName string) *mongo.Collection
-}
-
 func NewMongoDbCacheStorage() cacheStorage.CacheStorage {
-	return &mongodbCacheStorage{}
-}
-
-func NewMongoDbDataStorage() MongoDbDataStorage {
 	return &mongodbCacheStorage{}
 }
 
