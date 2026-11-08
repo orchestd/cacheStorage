@@ -61,6 +61,7 @@ type CacheStorage interface {
 	Connect(c context.Context, host, userName, userPw, database string) error
 	Close(context.Context) error
 	GetCacheStorageClient() (CacheStorageGetter, CacheStorageSetter)
+	GetEngine() interface{}
 }
 
 /*func DefaultCacheStorageClient(lc fx.Lifecycle, credentials credentials.CredentialsGetter,cacheStorage cacheStorage.CacheStorage) (cache.CacheStorageGetter, cache.CacheStorageSetter) {

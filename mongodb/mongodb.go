@@ -13,15 +13,7 @@ type mongodbCacheStorage struct {
 	database *mongo.Database
 }
 
-type MongoDbDataStorage interface {
-	GetCollection(collectionName string) *mongo.Collection
-}
-
 func NewMongoDbCacheStorage() cacheStorage.CacheStorage {
-	return &mongodbCacheStorage{}
-}
-
-func NewMongoDbDataStorage() MongoDbDataStorage {
 	return &mongodbCacheStorage{}
 }
 
@@ -43,8 +35,8 @@ func (s *mongodbCacheStorage) Connect(c context.Context, host, userName, userPw,
 	return nil
 }
 
-func (s *mongodbCacheStorage) GetCollection(collectionName string) *mongo.Collection {
-	return s.database.Collection(collectionName)
+func (s *mongodbCacheStorage) GetEngine() interface{} {
+	return s.database
 }
 
 func (s mongodbCacheStorage) Close(c context.Context) error {
