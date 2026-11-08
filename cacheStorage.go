@@ -3,8 +3,6 @@ package cacheStorage
 import (
 	"context"
 	"time"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CacheStorageError interface {
@@ -63,7 +61,7 @@ type CacheStorage interface {
 	Connect(c context.Context, host, userName, userPw, database string) error
 	Close(context.Context) error
 	GetCacheStorageClient() (CacheStorageGetter, CacheStorageSetter)
-	GetCollection(collectionName string) *mongo.Collection
+	GetEngine() interface{}
 }
 
 /*func DefaultCacheStorageClient(lc fx.Lifecycle, credentials credentials.CredentialsGetter,cacheStorage cacheStorage.CacheStorage) (cache.CacheStorageGetter, cache.CacheStorageSetter) {
